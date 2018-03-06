@@ -27,6 +27,8 @@ import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.ws.rs.client.Entity;
@@ -45,23 +47,21 @@ import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.container.test.api.TargetsContainer;
 import org.jboss.arquillian.extension.rest.client.ArquillianResteasyResource;
 import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.arquillian.junit.InSequence;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.ClassLoaderAsset;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import static org.junit.Assert.assertThat;
-import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.MethodSorters;
 
 /**
  *
  * @author Krzysztof Śmigrodzki <Krzysztof.Smigrodzki@mf.gov.pl>
  */
 @RunWith(Arquillian.class)
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class CheckTest {
     
     @Deployment(order = 1, name = "app")
@@ -91,8 +91,9 @@ public class CheckTest {
     }
     
     @Test
+    @InSequence(1)
     @OperateOnDeployment("app")
-    public void test01_localUpload(@ArquillianResource URL url, @ArquillianResource InitialContext ctx) throws NamingException, NoSuchAlgorithmException {
+    public void localUpload(@ArquillianResource URL url, @ArquillianResource InitialContext ctx) throws NamingException, NoSuchAlgorithmException {
         FileAttachmentUploadBeanRemote bean
                 = (FileAttachmentUploadBeanRemote) ctx.lookup("java:global/"+url.getPath()+"/FileAttachmentUploadBean");
         byte []testData = new byte[96*1024];
@@ -108,9 +109,10 @@ public class CheckTest {
     }
     
     @Test
+    @InSequence(2)
     @RunAsClient
     @OperateOnDeployment("web")
-    public void testUploadViaRest(
+    public void uploadViaRest(
             @ArquillianResteasyResource("rest/files") WebTarget webTarget) throws NoSuchAlgorithmException {
         byte []testData = new byte[96*1024];
         for (int i = 0; i < testData.length; i++) {

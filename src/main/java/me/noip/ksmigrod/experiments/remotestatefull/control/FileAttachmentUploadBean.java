@@ -34,7 +34,6 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Resource;
-import javax.ejb.EJB;
 import javax.ejb.Remove;
 import javax.ejb.Stateful;
 import javax.ejb.TransactionManagement;
@@ -74,8 +73,8 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
 
     private EntityManager em;
     private long fileAttachmentId;
-    private Blob blob;
-    private OutputStream os;
+//    private Blob blob;
+//    private OutputStream os;
 
     @Override
     public void init(final String fileName) {
@@ -105,29 +104,29 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
             } while ((t = t.getCause()) != null);
             throw ex;
         }
-        try {
-            Connection conn = em.unwrap(Connection.class);
-            this.blob = conn.createBlob();
-            this.os = blob.setBinaryStream(1);
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, null, ex);
-            throw new IllegalStateException(ex);
-        }
+//        try {
+//            Connection conn = em.unwrap(Connection.class);
+//            this.blob = conn.createBlob();
+//            this.os = blob.setBinaryStream(1);
+//        } catch (SQLException ex) {
+//            logger.log(Level.SEVERE, null, ex);
+//            throw new IllegalStateException(ex);
+//        }
     }
 
     @Override
     public FileAttachment close() {
-        Connection conn = em.unwrap(Connection.class);
-        try (PreparedStatement ps = conn.prepareStatement("UPDATE FILE_ATTACHMENTS"
-                + " SET FILE_DATA = ?"
-                + " WHERE FILE_ID = ?")) {
-            ps.setBlob(1, blob);
-            ps.setLong(2, fileAttachmentId);
-            int executeUpdate = ps.executeUpdate();
-        } catch (SQLException ex) {
-            logger.log(Level.SEVERE, null, ex);
-            throw new IllegalStateException(ex);
-        }
+//        Connection conn = em.unwrap(Connection.class);
+//        try (PreparedStatement ps = conn.prepareStatement("UPDATE FILE_ATTACHMENTS"
+//                + " SET FILE_DATA = ?"
+//                + " WHERE FILE_ID = ?")) {
+//            ps.setBlob(1, blob);
+//            ps.setLong(2, fileAttachmentId);
+//            int executeUpdate = ps.executeUpdate();
+//        } catch (SQLException ex) {
+//            logger.log(Level.SEVERE, null, ex);
+//            throw new IllegalStateException(ex);
+//        }
         FileAttachment fa = em.find(FileAttachment.class, fileAttachmentId);
         em.refresh(fa);
         fa.setCheckSum(DatatypeConverter.printHexBinary(md.digest()).toUpperCase());
@@ -158,15 +157,15 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
 
     @Override
     public void write(final byte[] buffer, final int offset, final int length) {
-        if (os == null) {
-            throw new IllegalStateException("Output stream is not open");
-        }
-        try {
-            os.write(buffer, offset, length);
+//        if (os == null) {
+//            throw new IllegalStateException("Output stream is not open");
+//        }
+//        try {
+//            os.write(buffer, offset, length);
             md.update(buffer, offset, length);
-        } catch (IOException ex) {
-            throw new IllegalStateException(ex);
-        }
+//        } catch (IOException ex) {
+//            throw new IllegalStateException(ex);
+//        }
     }
 
 }
