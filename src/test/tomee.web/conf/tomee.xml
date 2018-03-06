@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tomee>
+    <JndiProvider id="app" type="javax.naming.InitialContext">
+        java.naming.provider.url = http://restapp:7080/tomee/ejb
+        java.naming.factory.initial = org.apache.openejb.client.RemoteInitialContextFactory
+    </JndiProvider>
+</tomee>

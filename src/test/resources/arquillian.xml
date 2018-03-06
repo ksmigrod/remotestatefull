@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<arquillian
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://jboss.org/schema/arquillian
+        http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
+    <group qualifier="tomee-cluster" default="true">
+        <container qualifier="tomee-app">
+            <configuration>
+                <property name="httpPort">7080</property>
+                <property name="stopPort">-1</property>
+                <property name="ajpPort">-1</property>
+                <property name="classifier">plume</property>
+                <property name="conf">src/test/tomee.app/conf</property>
+                <property name="dir">${target.dir}/tomee-app</property>
+                <property name="appWorkingDir">${target.dir}/tomee-app-wd</property>
+            </configuration>
+        </container>
+        <container qualifier="tomee-web">
+            <configuration>
+                <property name="httpPort">8080</property>
+                <property name="stopPort">-1</property>
+                <property name="ajpPort">-1</property>
+                <property name="conf">src/test/tomee.web/conf</property>
+                <property name="dir">${target.dir}/tomee-web</property>
+                <property name="appWorkingDir">${target.dir}/tomee-web-wd</property>
+            </configuration>
+        </container>
+    </group>
+</arquillian>
