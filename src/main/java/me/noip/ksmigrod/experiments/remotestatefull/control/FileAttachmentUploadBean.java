@@ -73,11 +73,14 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
 
     private EntityManager em;
     private long fileAttachmentId;
+    private String fileName;
 //    private Blob blob;
 //    private OutputStream os;
 
     @Override
     public void init(final String fileName) {
+        logger.log(Level.INFO, "entering init({0})", fileName);
+        this.fileName = fileName;
         try {
             this.md = MessageDigest.getInstance("SHA-256");
             utx.begin();
@@ -116,6 +119,7 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
 
     @Override
     public FileAttachment close() {
+        logger.log(Level.INFO, "entering close() {0}", this.fileName);
 //        Connection conn = em.unwrap(Connection.class);
 //        try (PreparedStatement ps = conn.prepareStatement("UPDATE FILE_ATTACHMENTS"
 //                + " SET FILE_DATA = ?"
