@@ -25,13 +25,10 @@ package me.noip.ksmigrod.experiments.remotestatefull.boundary;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.enterprise.context.RequestScoped;
 import javax.mail.internet.ContentDisposition;
-import javax.naming.NamingException;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;

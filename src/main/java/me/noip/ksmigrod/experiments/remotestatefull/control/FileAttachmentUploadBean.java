@@ -23,30 +23,26 @@
  */
 package me.noip.ksmigrod.experiments.remotestatefull.control;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Resource;
 import javax.ejb.Remove;
 import javax.ejb.Stateful;
-import javax.ejb.TransactionManagement;
-import javax.ejb.TransactionManagementType;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceUnit;
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.NotSupportedException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
-import javax.transaction.UserTransaction;
+import javax.persistence.PersistenceContext;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.xml.bind.DatatypeConverter;
@@ -57,38 +53,27 @@ import me.noip.ksmigrod.experiments.remotestatefull.entity.FileAttachment;
  * @author Krzysztof Śmigrodzki <Krzysztof.Smigrodzki@mf.gov.pl>
  */
 @Stateful(passivationCapable = false)
-@TransactionManagement(TransactionManagementType.BEAN)
 public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote {
 
     private static final Logger logger
             = Logger.getLogger(FileAttachmentUploadBean.class.getName());
 
-    @PersistenceUnit
-    EntityManagerFactory emf;
-
-    @Resource
-    UserTransaction utx;
+    @PersistenceContext
+    EntityManager em;
 
     MessageDigest md;
 
-    private EntityManager em;
     private long fileAttachmentId;
-    private String fileName;
-//    private Blob blob;
-//    private OutputStream os;
+    private File tempFile;
+    private OutputStream os;
 
     @Override
     public void init(final String fileName) {
-        logger.log(Level.INFO, "entering init({0})", fileName);
-        this.fileName = fileName;
         try {
             this.md = MessageDigest.getInstance("SHA-256");
-            utx.begin();
-        } catch (NoSuchAlgorithmException | NotSupportedException | SystemException ex) {
-            logger.log(Level.SEVERE, "Opening transaction.", ex);
-            throw new IllegalStateException(ex);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Intitializing file upload SFSB", ex);
         }
-        this.em = emf.createEntityManager();
         try {
             FileAttachment fileAttachment = new FileAttachment();
             fileAttachment.setFileName(fileName);
@@ -107,69 +92,75 @@ public class FileAttachmentUploadBean implements FileAttachmentUploadBeanRemote 
             } while ((t = t.getCause()) != null);
             throw ex;
         }
-//        try {
-//            Connection conn = em.unwrap(Connection.class);
-//            this.blob = conn.createBlob();
-//            this.os = blob.setBinaryStream(1);
-//        } catch (SQLException ex) {
-//            logger.log(Level.SEVERE, null, ex);
-//            throw new IllegalStateException(ex);
-//        }
+        try {
+            tempFile = File.createTempFile("upload-" + fileAttachmentId + "-", "tmp");
+            os = new FileOutputStream(tempFile);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Creating temporary file in upload SFSB", ex);
+        }
     }
 
     @Override
     public FileAttachment close() {
-        logger.log(Level.INFO, "entering close() {0}", this.fileName);
-//        Connection conn = em.unwrap(Connection.class);
-//        try (PreparedStatement ps = conn.prepareStatement("UPDATE FILE_ATTACHMENTS"
-//                + " SET FILE_DATA = ?"
-//                + " WHERE FILE_ID = ?")) {
-//            ps.setBlob(1, blob);
-//            ps.setLong(2, fileAttachmentId);
-//            int executeUpdate = ps.executeUpdate();
-//        } catch (SQLException ex) {
-//            logger.log(Level.SEVERE, null, ex);
-//            throw new IllegalStateException(ex);
-//        }
+        try {
+            os.close();
+            os = null;
+        } catch (IOException ex) {
+            throw new IllegalStateException("Closing temporary file in file upload SFSB", ex);
+        }
+        Connection conn = em.unwrap(Connection.class);
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE FILE_ATTACHMENTS"
+                + " SET FILE_DATA = ?"
+                + " WHERE FILE_ID = ?");
+                InputStream is = new BufferedInputStream(new FileInputStream(tempFile))) {
+            ps.setBinaryStream(1, is);
+            ps.setLong(2, fileAttachmentId);
+            ps.executeUpdate();
+        } catch (SQLException | IOException ex) {
+            throw new IllegalStateException("Writing temporary file content to database in SFSB.", ex);
+        }
+        tempFile.delete();
+        tempFile = null;
         FileAttachment fa = em.find(FileAttachment.class, fileAttachmentId);
         em.refresh(fa);
         fa.setCheckSum(DatatypeConverter.printHexBinary(md.digest()).toUpperCase());
-        em.close();
-        try {
-            utx.commit();
-        } catch (RollbackException | HeuristicMixedException | HeuristicRollbackException
-                | SecurityException | IllegalStateException | SystemException ex) {
-            logger.log(Level.SEVERE, null, ex);
-        }
+        em.flush();
+        em.detach(fa);
         return fa;
     }
 
     @Override
     public void abort() {
-        em.close();
-        try {
-            utx.rollback();
-        } catch (IllegalStateException | SecurityException | SystemException ex) {
-            logger.log(Level.SEVERE, null, ex);
-        }
+        em.remove(em.find(FileAttachment.class, fileAttachmentId));
+
     }
 
     @Override
     @Remove
     public void remove() {
+        if (os != null) {
+            try {
+                os.close();
+            } catch (IOException ex) {
+            }
+        }
+        if (tempFile != null) {
+            tempFile.delete();
+        }
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
     public void write(final byte[] buffer, final int offset, final int length) {
-//        if (os == null) {
-//            throw new IllegalStateException("Output stream is not open");
-//        }
-//        try {
-//            os.write(buffer, offset, length);
+        if (os == null) {
+            throw new IllegalStateException("Output stream is not open");
+        }
+        try {
+            os.write(buffer, offset, length);
             md.update(buffer, offset, length);
-//        } catch (IOException ex) {
-//            throw new IllegalStateException(ex);
-//        }
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
 }
